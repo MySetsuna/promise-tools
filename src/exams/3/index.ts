@@ -51,8 +51,7 @@ const requestUserProfile = (uid = "1", max = 2) => {
   return profileProTool.getPromise({
     key: `${uid}key`,
     params: uid,
-    timeout: 2000,
-    expire: 1000,
+    timeout: 1000,
   });
 };
 /**

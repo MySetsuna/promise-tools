@@ -11,6 +11,7 @@ class PromiseTool {
   _timer?: NodeJS.Timeout;
   _promiseTimeout?: number;
   _promiseExpire?: number;
+  _timeoutTimerMap: Map<string, NodeJS.Timeout> = new Map();
   constructor(
     getFetch: (key?: string, params?: unknown) => Promise<unknown>,
     options?: {
@@ -50,9 +51,10 @@ class PromiseTool {
           this._getFetch(key, params).then((rs) => {
             _resovleMap.delete(key);
             _paramsMap.delete(key);
-            console.log(rs, "rsrsrs");
-
             resovle(rs);
+            const timer = this._timeoutTimerMap.get(key);
+            this._timeoutTimerMap.delete(key);
+            clearTimeout(timer);
           });
         } else {
           clearTimeout(this._timer);
@@ -81,6 +83,9 @@ class PromiseTool {
     expire?: number;
   }) => {
     const { key, params, timeout, expire } = options;
+    if (timeout && expire && timeout >= expire) {
+      throw new Error("expire time should more than timeout time");
+    }
     const { _resovleMap, _paramsMap, _promiseMap, _rejectMap } = this;
     const getPromiseInner = () => {
       return new Promise((resovle, reject) => {
@@ -103,16 +108,19 @@ class PromiseTool {
       const promise = getPromiseInner();
       _promiseMap.set(key, promise);
       setTimeout(() => {
+        const preReject = _rejectMap.get(key);
         _promiseMap.delete(key);
         _resovleMap.delete(key);
         _paramsMap.delete(key);
         _rejectMap.delete(key);
-        const promise = getPromiseInner();
-        _promiseMap.set(key, promise);
+        if (preReject) preReject(`pre Promise expire: ${expire}`);
       }, expire ?? this._promiseExpire);
-      setTimeout(() => {
-        if (_promiseMap.get(key) === promise) _rejectMap.get(key)?.("timeout");
+
+      const timeoutTimer = setTimeout(() => {
+        if (_promiseMap.get(key) === promise)
+          _rejectMap.get(key)?.(`beyond custom timeout: ${timeout}`);
       }, timeout ?? this._promiseTimeout);
+      this._timeoutTimerMap.set(key, timeoutTimer);
       if (_promiseMap.size === this._max) await this._batchFetch();
     }
     return _promiseMap.get(key);
@@ -129,10 +137,16 @@ class PromiseTool {
         this._getFetch(key, tempParamsMap.get(key))
       )
     );
+    [...tempMap.keys()].forEach((key) => {
+      const timer = this._timeoutTimerMap.get(key);
+      this._timeoutTimerMap.delete(key);
+      clearTimeout(timer);
+    });
     [...tempMap.keys()].forEach((key, index) => {
       const resovle = tempMap.get(key);
       if (resovle) resovle(resultList[index]);
     });
+
     tempMap.clear();
     tempParamsMap.clear();
     this._batching = false;

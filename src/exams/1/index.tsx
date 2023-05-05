@@ -56,19 +56,19 @@ const Card: FC<ICardProps> = (props) => {
   }, []);
 
   const handleClick = useCallback(() => {
-    if (bntText === '抢购') {
+    if (bntNubmer === 0 && bntText === '抢购') {
       fetchData().then((data) => {
         if (data === '成功') {
           setBntText('已抢购');
         }
       });
     }
-  }, [bntText]);
+  }, [bntNubmer, bntText, fetchData]);
   useEffect(() => {
     if (bntNubmer) {
       setTimeout(trunTimes, 1000);
     }
-  }, [bntNubmer]);
+  }, [bntNubmer, trunTimes]);
   return (
     <div className="card">
       <div className="title-box">
@@ -85,5 +85,6 @@ const Card: FC<ICardProps> = (props) => {
 /**
  * 以下为测试用例，无需修改
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export default () =>
   cardDataList.map((data) => <Card key={data.title} data={data} />);

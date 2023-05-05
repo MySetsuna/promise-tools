@@ -36,7 +36,7 @@ const getUserInfo = () => {
       return requestUserInfo();
     });
   }
-  return profileProTool.getPromise({ key: "getUserInfo" });
+  return profileProTool.getPromise({ key: "getUserInfo", timeout: 5000 });
 };
 
 /**
