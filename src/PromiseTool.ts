@@ -76,12 +76,17 @@ class PromiseTool {
   /**
    * key 避免重复请求设置的唯一值 params 请求方法所需的参数
    */
-  getPromise = async (options: {
-    key: string;
-    params?: unknown;
-    timeout?: number;
-    expire?: number;
-  }) => {
+  getPromise = async (
+    options: {
+      key: string;
+      params?: unknown;
+      timeout?: number;
+      expire?: number;
+    },
+    listenter?: {
+      expire?: (expire: (isNeedUpdate?: boolean) => void) => void;
+    }
+  ) => {
     const { key, params, timeout, expire } = options;
     if (timeout && expire && timeout >= expire) {
       throw new Error("expire time should more than timeout time");
@@ -104,17 +109,42 @@ class PromiseTool {
         );
       });
     };
+    const expireFunction = (isByTrigger?: boolean, isNeedUpdate?: boolean) => {
+      const preResove = _resovleMap.get(key);
+      const preReject = _rejectMap.get(key);
+      _promiseMap.delete(key);
+      _resovleMap.delete(key);
+      _paramsMap.delete(key);
+      _rejectMap.delete(key);
+      if (isNeedUpdate) {
+        const promise = getPromiseInner();
+        _promiseMap.set(key, promise);
+        if (preResove) {
+          promise.then((data) => {
+            preResove(data);
+          });
+        }
+      } else if (preReject)
+        preReject(
+          isByTrigger
+            ? `pre promise is expire by trigger`
+            : `pre promise is expire in time: ${expire}`
+        );
+    };
+
+    const expireFunctionByTrigger = (isNeedUpdate?: boolean) => {
+      const preResove = _resovleMap.get(key);
+      expireFunction(!!preResove, isNeedUpdate);
+    };
+
+    if (listenter) {
+      if (typeof listenter.expire === "function")
+        listenter.expire(expireFunctionByTrigger);
+    }
     if (!_promiseMap.has(key)) {
       const promise = getPromiseInner();
       _promiseMap.set(key, promise);
-      setTimeout(() => {
-        const preReject = _rejectMap.get(key);
-        _promiseMap.delete(key);
-        _resovleMap.delete(key);
-        _paramsMap.delete(key);
-        _rejectMap.delete(key);
-        if (preReject) preReject(`pre Promise expire: ${expire}`);
-      }, expire ?? this._promiseExpire);
+      setTimeout(expireFunction, expire ?? this._promiseExpire);
 
       const timeoutTimer = setTimeout(() => {
         if (_promiseMap.get(key) === promise)

@@ -48,11 +48,21 @@ const requestUserProfile = (uid = "1", max = 2) => {
       { max }
     );
   }
-  return profileProTool.getPromise({
-    key: `${uid}key`,
-    params: uid,
-    timeout: 1000,
-  });
+  return profileProTool.getPromise(
+    {
+      key: `${uid}key`,
+      params: uid,
+    },
+    {
+      expire: (expire) => {
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "k") {
+            expire(true);
+          }
+        });
+      },
+    }
+  );
 };
 /**
  * 以下为测试用例，无需修改
@@ -95,6 +105,8 @@ export default async () => {
     ) {
       throw new Error("Wrong answer");
     }
+    console.log(_requestTime, "_requestTime 第三题");
+
     return _requestTime === 3;
   } catch (err) {
     console.warn("测试运行失败");
